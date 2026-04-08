@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <title>SEO Manager</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f3f4f6; color: #374151; }
+    .nav-item.active { background: #e0effe; color: #1e40af; border-left: 4px solid #1e40af; }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    
+    .chk-wrapper:hover { background-color: #f9fafb; }
+    .chk-wrapper.selected { background-color: #eff6ff; border-color: #60a5fa; }
+    .status-ok { color: #059669; font-weight: bold; background: #d1fae5; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    .status-ng { color: #dc2626; font-weight: bold; background: #fee2e2; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    
+    /* Clickable Rows */
+    .clickable-row { cursor: pointer; transition: background-color 0.15s; }
+    .clickable-row:hover { background-color: #f3f4f6; }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <aside class="w-64 bg-white border-r flex flex-col z-10 flex-shrink-0">
+    <div class="p-6 border-b">
+      <h1 class="text-xl font-bold text-gray-800"><i class="fas fa-network-wired text-blue-600 mr-2"></i>SEO Manager</h1>
+    </div>
+    <nav class="flex-1 py-4 space-y-1 overflow-y-auto">
+      <button onclick="router('home')" id="btn-home" class="nav-item w-full text-left px-6 py-3 hover:bg-gray-50 flex items-center active transition-colors"><i class="fas fa-home w-6 text-center"></i>ホーム</button>
+      <button onclick="router('links')" id="btn-links" class="nav-item w-full text-left px-6 py-3 hover:bg-gray-50 flex items-center transition-colors"><i class="fas fa-link w-6 text-center"></i>内部リンク設定</button>
+      <button onclick="router('clusters')" id="btn-clusters" class="nav-item w-full text-left px-6 py-3 hover:bg-gray-50 flex items-center transition-colors"><i class="fas fa-layer-group w-6 text-center"></i>クラスター管理</button>
+      <button onclick="router('list')" id="btn-list" class="nav-item w-full text-left px-6 py-3 hover:bg-gray-50 flex items-center transition-colors"><i class="fas fa-list w-6 text-center"></i>記事一覧</button>
+    </nav>
+    <div class="p-4 border-t bg-gray-50">
+      <button onclick="loadData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded shadow font-bold transition"><i class="fas fa-sync-alt mr-2"></i>データ更新</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto p-8 relative">
+    <div id="loader" class="absolute inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center z-50">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+      <p class="text-gray-500 font-medium">データを読み込んでいます...</p>
+    </div>
+
+    <div id="view-home" class="view-section space-y-6">
+      <h2 class="text-2xl font-bold text-gray-800">ダッシュボード</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <div class="bg-white p-6 rounded-lg shadow-sm border h-fit">
+          <h3 class="font-bold text-lg mb-4 text-gray-700 border-b pb-2">新規記事登録</h3>
+          <div class="space-y-4">
+            <div><label class="block text-sm text-gray-600 mb-1">記事タイトル</label><input type="text" id="new-title" class="w-full border border-gray-300 p-2 rounded outline-none"></div>
+            <div><label class="block text-sm text-gray-600 mb-1">URL (パス)</label><input type="text" id="new-url" class="w-full border border-gray-300 p-2 rounded outline-none"></div>
+            <button onclick="addArticle()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 font-bold shadow">登録</button>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border flex flex-col" style="max-height: 500px;">
+          <h3 class="font-bold text-lg mb-4 text-gray-700 border-b pb-2 flex justify-between items-center">
+            <span>被リンク数ランキング</span>
+            <span class="text-xs font-normal text-gray-400">クリックで詳細</span>
+          </h3>
+          <div class="overflow-y-auto custom-scroll flex-1">
+            <table class="w-full text-sm text-left relative">
+              <thead class="bg-gray-50 text-xs uppercase text-gray-500 sticky top-0 z-10 shadow-sm">
+                <tr><th class="py-2 pl-2">Rank</th><th class="py-2">Title</th><th class="py-2 text-right pr-2">Inbound</th></tr>
+              </thead>
+              <tbody id="home-ranking">
+                </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="view-links" class="view-section hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div><h2 class="text-2xl font-bold text-gray-800">内部リンク設定</h2><p class="text-gray-500 mt-1">記事をクリックすると、その記事から発信するリンク先を選択できます。</p></div>
+        <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-3"><i class="fas fa-search text-gray-400"></i></span><input type="text" id="links-search-box" onkeyup="filterLinksGrid()" placeholder="記事を検索..." class="border rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"></div>
+      </div>
+      <div id="links-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
+    <div id="view-clusters" class="view-section hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-800">トピッククラスター健全性チェック</h2>
+        <button onclick="openClusterModal()" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 font-bold"><i class="fas fa-plus mr-2"></i>新規トピック作成</button>
+      </div>
+      <div id="clusters-list" class="space-y-6"></div>
+    </div>
+
+    <div id="view-list" class="view-section hidden space-y-6">
+      <div class="flex justify-between items-center"><h2 class="text-2xl font-bold text-gray-800">全記事一覧</h2><input type="text" id="search-box" onkeyup="filterList()" placeholder="検索..." class="border rounded-full px-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+      <div class="bg-white rounded shadow overflow-hidden border">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-gray-50 text-gray-500 uppercase text-xs border-b"><tr><th class="px-6 py-3">記事（クリックで詳細）</th><th class="px-6 py-3 text-center">発リンク</th><th class="px-6 py-3 text-center">被リンク</th></tr></thead>
+          <tbody id="full-list-body" class="divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+      <div id="list-count" class="text-right text-sm text-gray-500"></div>
+    </div>
+  </main>
+
+  <div id="modal-link" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg w-full max-w-5xl shadow-2xl flex flex-col relative" style="max-height: 90vh;">
+      <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+        <div><h3 id="modal-link-title" class="font-bold text-xl text-gray-800">リンク設定</h3></div>
+        <button onclick="closeModal('modal-link')" class="text-gray-400 hover:text-gray-600 p-2"><i class="fas fa-times text-xl"></i></button>
+      </div>
+      <div class="p-4 bg-white border-b"><input id="modal-link-search" onkeyup="filterLinkModal()" placeholder="記事を検索..." class="w-full border border-gray-300 px-4 py-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"></div>
+      <div id="modal-link-list" class="p-4 bg-gray-50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 custom-scroll" style="height: 500px; overflow-y: scroll; display: block;"></div>
+      <div class="p-4 border-t bg-white rounded-b-lg flex justify-end gap-3">
+        <button onclick="closeModal('modal-link')" class="px-5 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium">キャンセル</button>
+        <button onclick="submitLinks()" class="px-6 py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-cluster" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg w-full max-w-5xl shadow-2xl flex flex-col relative" style="max-height: 90vh;">
+      <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+        <div><h3 class="font-bold text-xl text-gray-800">トピッククラスター編集</h3></div>
+        <button onclick="closeModal('modal-cluster')" class="text-gray-400 hover:text-gray-600 p-2"><i class="fas fa-times text-xl"></i></button>
+      </div>
+      <div class="p-4 bg-white border-b space-y-4 flex-shrink-0">
+        <input type="hidden" id="c-id">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">トピック名</label><input id="c-name" class="w-full border p-2 rounded focus:outline-none focus:border-indigo-500"></div>
+          <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">ピラー記事 (親)</label><select id="c-pillar" class="w-full border p-2 rounded bg-white focus:outline-none focus:border-indigo-500"></select></div>
+        </div>
+        <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-3"><i class="fas fa-search text-gray-400"></i></span><input id="modal-cluster-search" onkeyup="filterClusterModal()" placeholder="クラスター記事（子）を検索..." class="w-full border border-gray-300 pl-10 pr-4 py-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+      </div>
+      <div id="modal-cluster-list" class="p-4 bg-gray-50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 custom-scroll" style="height: 400px; overflow-y: scroll; display: block;"></div>
+      <div class="p-4 border-t bg-white rounded-b-lg flex justify-end gap-3 flex-shrink-0">
+        <button onclick="closeModal('modal-cluster')" class="px-5 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium">キャンセル</button>
+        <button onclick="submitCluster()" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded shadow hover:bg-indigo-700 transition">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-article-edit" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg w-full max-w-4xl shadow-2xl flex flex-col relative" style="max-height: 90vh;">
+      <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg flex-shrink-0">
+        <h3 class="font-bold text-xl text-gray-800">記事詳細・編集</h3>
+        <button onclick="closeModal('modal-article-edit')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+      </div>
+      <div class="overflow-y-auto custom-scroll p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="hidden" id="edit-id">
+          <div><label class="block text-sm font-bold text-gray-700 mb-1">記事タイトル</label><input type="text" id="edit-title" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+          <div><label class="block text-sm font-bold text-gray-700 mb-1">URL (パス)</label><input type="text" id="edit-url" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></div>
+        </div>
+        <div class="border-t pt-6">
+          <h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-project-diagram mr-2 text-indigo-500"></i>内部リンク状況</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+              <div class="flex justify-between items-center mb-2 border-b border-blue-200 pb-2"><span class="font-bold text-blue-800 text-sm">発信リンク (Outbound)</span><span id="edit-outbound-count" class="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full font-bold">0</span></div>
+              <ul id="edit-outbound-list" class="text-sm text-gray-700 space-y-2 h-40 overflow-y-auto custom-scroll pr-2"></ul>
+            </div>
+            <div class="bg-green-50 border border-green-200 rounded p-4">
+              <div class="flex justify-between items-center mb-2 border-b border-green-200 pb-2"><span class="font-bold text-green-800 text-sm">被リンク (Inbound)</span><span id="edit-inbound-count" class="bg-green-200 text-green-800 text-xs px-2 py-1 rounded-full font-bold">0</span></div>
+              <ul id="edit-inbound-list" class="text-sm text-gray-700 space-y-2 h-40 overflow-y-auto custom-scroll pr-2"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-between items-center flex-shrink-0">
+        <button onclick="submitDeleteArticle()" class="text-red-600 hover:text-red-800 text-sm font-bold px-3 py-2 rounded hover:bg-red-50"><i class="fas fa-trash mr-1"></i>この記事を削除</button>
+        <div class="flex gap-2">
+          <button onclick="closeModal('modal-article-edit')" class="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-white">キャンセル</button>
+          <button onclick="submitUpdateArticle()" class="px-6 py-2 bg-indigo-600 text-white font-bold rounded shadow hover:bg-indigo-700">更新を保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function norm(id) { return String(id).trim(); }
+    let DB = { articles: [], links: [], clusters: [], members: [] };
+    let editingLinkId = null;
+
+    window.onload = loadData;
+
+    function router(page) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+      document.getElementById('view-' + page).classList.remove('hidden');
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('btn-' + page).classList.add('active');
+    }
+
+    function loadData() {
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(data => {
+        DB.articles = data.articles.map(r => ({ id: norm(r[0]), title: r[1], url: r[2] }));
+        DB.links = data.links.map(r => ({ source: norm(r[0]), target: norm(r[1]) }));
+        DB.clusters = data.clusters.map(r => ({ id: norm(r[0]), name: r[1], pillarId: norm(r[2]) }));
+        DB.members = data.members.map(r => ({ cId: norm(r[0]), aId: norm(r[1]) }));
+        renderAll();
+        document.getElementById('loader').classList.add('hidden');
+      }).withFailureHandler(e => alert(e.message)).getAllData();
+    }
+
+    function renderAll() { renderHome(); renderLinksView(); renderClusters(); renderListView(); }
+
+    // --- Home (Ranking) ---
+    function renderHome() {
+      // 1. 全記事を計算してソート (sliceなし)
+      const ranking = DB.articles.map(a => ({ ...a, count: DB.links.filter(l => l.target === a.id).length })).sort((a,b) => b.count - a.count);
+      
+      // 2. 全件表示 (clickable-row クラスと onclick を追加)
+      document.getElementById('home-ranking').innerHTML = ranking.map((a, i) => `
+        <tr onclick="openArticleEditModal('${a.id}')" class="border-b last:border-0 clickable-row">
+          <td class="py-3 pl-2 font-bold ${i<3?'text-yellow-600':'text-gray-500'}">#${i+1}</td>
+          <td class="py-3 font-medium text-gray-800 truncate max-w-xs">${esc(a.title)}</td>
+          <td class="py-3 text-right pr-2 font-bold text-blue-600">${a.count}</td>
+        </tr>`).join('');
+    }
+
+    function addArticle() {
+      const t = document.getElementById('new-title').value; const u = document.getElementById('new-url').value;
+      if(!t) return alert("入力してください");
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(res => { 
+        document.getElementById('new-title').value = ''; document.getElementById('new-url').value = ''; 
+        alert(res); loadData(); 
+      }).addArticle(t, u);
+    }
+
+    // Links View
+    function renderLinksView(articles = DB.articles) {
+      document.getElementById('links-grid').innerHTML = articles.map(a => {
+        const out = DB.links.filter(l => l.source === a.id).length;
+        return `<div onclick="openLinkModal('${a.id}')" class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg cursor-pointer flex justify-between items-center group transition-all">
+          <div class="overflow-hidden pr-2"><div class="font-bold text-gray-800 truncate group-hover:text-blue-600">${esc(a.title)}</div><div class="text-xs text-gray-400 truncate mt-1">${esc(a.url)}</div></div>
+          <div class="text-center bg-gray-50 rounded p-2"><div class="text-[10px] text-gray-400 font-bold uppercase">Links</div><div class="font-bold text-lg text-blue-600 leading-none">${out}</div></div>
+        </div>`;
+      }).join('');
+    }
+    function filterLinksGrid() {
+      const term = document.getElementById('links-search-box').value.toLowerCase();
+      renderLinksView(DB.articles.filter(a => a.title.toLowerCase().includes(term)||a.url.toLowerCase().includes(term)));
+    }
+
+    function openLinkModal(id) {
+      if (!id) return alert("ID不正");
+      editingLinkId = id;
+      const art = DB.articles.find(a => a.id === id);
+      document.getElementById('modal-link-title').textContent = `「${art ? art.title : '不明'}」の設定`;
+      document.getElementById('modal-link-search').value = '';
+      
+      const listEl = document.getElementById('modal-link-list');
+      listEl.scrollTop = 0;
+      
+      const targets = DB.links.filter(l => l.source === id).map(l => l.target);
+      listEl.innerHTML = DB.articles.filter(a => a.id !== id).map(a => {
+        const isChecked = targets.includes(a.id);
+        const activeClass = isChecked ? 'selected' : '';
+        return `<label class="chk-wrapper flex items-start p-3 border border-white rounded cursor-pointer bg-white ${activeClass} transition shadow-sm hover:shadow-md border-gray-100" style="display:flex;">
+          <div class="flex items-center h-5"><input type="checkbox" value="${a.id}" ${isChecked ? 'checked' : ''} class="h-5 w-5 text-blue-600 rounded" onchange="toggleHighlight(this)"></div>
+          <div class="ml-3 overflow-hidden w-full"><div class="text-sm font-medium text-gray-900 truncate">${esc(a.title)}</div><div class="text-xs text-gray-500 truncate">${esc(a.url)}</div></div>
+        </label>`;
+      }).join('');
+      document.getElementById('modal-link').classList.remove('hidden');
+    }
+
+    function filterLinkModal() {
+      const term = document.getElementById('modal-link-search').value.toLowerCase();
+      document.querySelectorAll('#modal-link-list .chk-wrapper').forEach(el => {
+        el.style.display = el.innerText.toLowerCase().includes(term) ? 'flex' : 'none';
+      });
+    }
+
+    function submitLinks() {
+      if(!editingLinkId) return alert("Error");
+      const sId = editingLinkId;
+      const checkboxes = document.querySelectorAll('#modal-link-list input:checked');
+      const tIds = Array.from(checkboxes).map(cb => cb.value);
+      closeModal('modal-link');
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(m => { alert(m); loadData(); })
+        .withFailureHandler(e => { alert(e); document.getElementById('loader').classList.add('hidden'); })
+        .saveInternalLinks(sId, tIds);
+    }
+
+    // Clusters View
+    function renderClusters() {
+      const listEl = document.getElementById('clusters-list');
+      if(DB.clusters.length === 0) { listEl.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white rounded border">トピッククラスターが設定されていません</div>'; return; }
+      
+      listEl.innerHTML = DB.clusters.map(c => {
+        const p = DB.articles.find(a => a.id === c.pillarId);
+        const members = DB.members.filter(m => m.cId === c.id);
+        const memberRows = members.map(m => {
+          const art = DB.articles.find(a => a.id === m.aId);
+          if (!art) return '';
+          const pToM = DB.links.some(l => l.source === c.pillarId && l.target === m.aId);
+          const mToP = DB.links.some(l => l.source === m.aId && l.target === c.pillarId);
+          return `<tr class="border-b last:border-0 hover:bg-gray-50">
+            <td class="py-2 pl-2 text-sm text-gray-700 truncate max-w-xs">${esc(art.title)}</td>
+            <td class="py-2 text-center border-l">${pToM ? '<span class="status-ok">OK</span>' : '<span class="status-ng">NG</span>'}</td>
+            <td class="py-2 text-center border-l">${mToP ? '<span class="status-ok">OK</span>' : '<span class="status-ng">NG</span>'}</td>
+          </tr>`;
+        }).join('');
+
+        return `<div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+              <div><span class="text-xs font-bold text-indigo-500 uppercase tracking-wide">Topic</span><h3 class="font-bold text-lg text-gray-800">${esc(c.name)}</h3></div>
+              <div class="space-x-2"><button onclick="openClusterModal('${c.id}')" class="text-sm bg-white border border-gray-300 px-3 py-1 rounded hover:bg-gray-100 font-medium">編集</button><button onclick="delCluster('${c.id}')" class="text-sm bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded hover:bg-red-100 font-medium">削除</button></div>
+            </div>
+            <div class="p-4 grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div class="lg:col-span-1"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Pillar</div><div class="font-bold text-indigo-700 mb-2">${p ? esc(p.title) : '<span class="text-red-500">削除済</span>'}</div></div>
+              <div class="lg:col-span-3"><div class="text-xs font-bold text-gray-400 uppercase mb-2">Health Check (${members.length})</div><div class="border rounded bg-white shadow-inner"><div class="overflow-y-auto custom-scroll" style="max-height: 300px;"><table class="w-full relative"><thead class="bg-gray-100 text-xs text-gray-500 uppercase sticky top-0 z-10 shadow-sm"><tr><th class="py-2 pl-2 text-left bg-gray-100">Cluster Article</th><th class="py-2 w-24 text-center border-l bg-gray-100">P→C</th><th class="py-2 w-24 text-center border-l bg-gray-100">C→P</th></tr></thead><tbody>${memberRows}</tbody></table></div>${members.length===0?'<div class="p-4 text-center text-sm text-gray-400">なし</div>':''}</div></div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function openClusterModal(id = null) {
+      document.getElementById('c-id').value = id || '';
+      document.getElementById('c-name').value = '';
+      document.getElementById('modal-cluster-search').value = '';
+      const pSelect = document.getElementById('c-pillar');
+      pSelect.innerHTML = '<option value="">選択してください</option>' + DB.articles.map(a => `<option value="${a.id}">${esc(a.title)}</option>`).join('');
+
+      const listEl = document.getElementById('modal-cluster-list');
+      listEl.scrollTop = 0;
+      let currentMembers = [], currentPillar = '', currentName = '';
+      if (id) {
+        const c = DB.clusters.find(x => x.id === id);
+        currentName = c.name; currentPillar = c.pillarId;
+        currentMembers = DB.members.filter(m => m.cId === id).map(m => m.aId);
+      }
+      document.getElementById('c-name').value = currentName; pSelect.value = currentPillar;
+
+      listEl.innerHTML = DB.articles.map(a => {
+        const isChecked = currentMembers.includes(a.id);
+        const activeClass = isChecked ? 'selected' : '';
+        return `<label class="chk-wrapper flex items-start p-3 border border-white rounded cursor-pointer bg-white ${activeClass} transition shadow-sm hover:shadow-md border-gray-100" style="display:flex;">
+          <div class="flex items-center h-5"><input type="checkbox" value="${a.id}" ${isChecked ? 'checked' : ''} class="h-5 w-5 text-indigo-600 rounded" onchange="toggleHighlight(this)"></div>
+          <div class="ml-3 overflow-hidden w-full"><div class="text-sm font-medium text-gray-900 truncate">${esc(a.title)}</div><div class="text-xs text-gray-500 truncate">${esc(a.url)}</div></div>
+        </label>`;
+      }).join('');
+      document.getElementById('modal-cluster').classList.remove('hidden');
+    }
+
+    function filterClusterModal() {
+      const term = document.getElementById('modal-cluster-search').value.toLowerCase();
+      document.querySelectorAll('#modal-cluster-list .chk-wrapper').forEach(el => {
+        el.style.display = el.innerText.toLowerCase().includes(term) ? 'flex' : 'none';
+      });
+    }
+
+    function submitCluster() {
+      const id = document.getElementById('c-id').value;
+      const name = document.getElementById('c-name').value;
+      const pid = document.getElementById('c-pillar').value;
+      const checkboxes = document.querySelectorAll('#modal-cluster-list input:checked');
+      const mids = Array.from(checkboxes).map(cb => cb.value);
+      if (!name || !pid) return alert("必須項目不足");
+      closeModal('modal-cluster');
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(res => { loadData(); alert(res); })
+        .withFailureHandler(e => { alert(e); document.getElementById('loader').classList.add('hidden'); })
+        .saveCluster(id, name, pid, mids);
+    }
+
+    function delCluster(id) {
+      if(!confirm("削除しますか？")) return;
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(res => { loadData(); alert(res); }).deleteCluster(id);
+    }
+
+    // List View
+    function renderListView(list = DB.articles) {
+      document.getElementById('full-list-body').innerHTML = list.map(a => {
+        const outC = DB.links.filter(l => l.source === a.id).length; const inC = DB.links.filter(l => l.target === a.id).length;
+        return `<tr onclick="openArticleEditModal('${a.id}')" class="clickable-row transition border-b last:border-0">
+          <td class="px-6 py-4"><div class="font-medium text-gray-900">${esc(a.title)}</div><div class="text-xs text-gray-500 font-mono mt-1">${esc(a.url)}</div></td>
+          <td class="px-6 py-4 text-center font-bold text-gray-600">${outC}</td>
+          <td class="px-6 py-4 text-center font-bold text-blue-600">${inC}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('list-count').textContent = `${list.length} 件`;
+    }
+    function filterList() { const t = document.getElementById('search-box').value.toLowerCase(); const f = DB.articles.filter(a => a.title.toLowerCase().includes(t)||a.url.toLowerCase().includes(t)); renderListView(f); }
+
+    // Article Detail
+    function openArticleEditModal(id) {
+      const art = DB.articles.find(a => a.id === id);
+      if(!art) return;
+      document.getElementById('edit-id').value = art.id;
+      document.getElementById('edit-title').value = art.title;
+      document.getElementById('edit-url').value = art.url;
+
+      const outbound = DB.links.filter(l => l.source === id);
+      const inbound = DB.links.filter(l => l.target === id);
+
+      const outList = document.getElementById('edit-outbound-list');
+      document.getElementById('edit-outbound-count').textContent = outbound.length;
+      outList.innerHTML = outbound.map(l => {
+        const targetArt = DB.articles.find(a => a.id === l.target);
+        return `<li class="flex items-center"><i class="fas fa-arrow-right text-blue-400 mr-2 text-xs"></i><span class="truncate">${targetArt ? esc(targetArt.title) : '<span class="text-red-400">削除済</span>'}</span></li>`;
+      }).join('') || '<li class="text-gray-400 text-xs italic">リンクなし</li>';
+
+      const inList = document.getElementById('edit-inbound-list');
+      document.getElementById('edit-inbound-count').textContent = inbound.length;
+      inList.innerHTML = inbound.map(l => {
+        const sourceArt = DB.articles.find(a => a.id === l.source);
+        return `<li class="flex items-center"><i class="fas fa-arrow-left text-green-400 mr-2 text-xs"></i><span class="truncate">${sourceArt ? esc(sourceArt.title) : '<span class="text-red-400">削除済</span>'}</span></li>`;
+      }).join('') || '<li class="text-gray-400 text-xs italic">リンクなし</li>';
+
+      document.getElementById('modal-article-edit').classList.remove('hidden');
+    }
+
+    function submitUpdateArticle() {
+      const id = document.getElementById('edit-id').value;
+      const title = document.getElementById('edit-title').value;
+      const url = document.getElementById('edit-url').value;
+      if(!title) return alert("タイトルは必須です");
+      closeModal('modal-article-edit');
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(res => { loadData(); alert(res); })
+        .withFailureHandler(e => { alert(e); document.getElementById('loader').classList.add('hidden'); })
+        .updateArticle(id, title, url);
+    }
+
+    function submitDeleteArticle() {
+      if(!confirm("この記事を削除しますか？\n※この操作は取り消せません。\n※関連するリンクやクラスター設定からも削除されます。")) return;
+      const id = document.getElementById('edit-id').value;
+      closeModal('modal-article-edit');
+      document.getElementById('loader').classList.remove('hidden');
+      google.script.run.withSuccessHandler(res => { loadData(); alert(res); })
+        .withFailureHandler(e => { alert(e); document.getElementById('loader').classList.add('hidden'); })
+        .deleteArticle(id);
+    }
+
+    function toggleHighlight(chk) {
+      const wrapper = chk.closest('label');
+      if(chk.checked) wrapper.classList.add('selected'); else wrapper.classList.remove('selected');
+    }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); if(id.includes('link') && !id.includes('search')) editingLinkId = null; }
+    function esc(s) { return s ? s.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]) : ''; }
+  </script>
+</body>
+</html>
