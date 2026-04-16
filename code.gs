@@ -52,16 +52,16 @@ function fetchSheetData(sheet, colCount) {
     .map(row => row.map(cell => String(cell).trim()));
 }
 
-// --- 記事管理アクション (追加・更新・削除) ---
+// --- 記事管理アクション ---
 
-// 1. 追加
+// 追加
 function addArticle(title, url) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ARTICLES);
   sheet.appendRow([Utilities.getUuid(), title, url]);
   return "記事を追加しました";
 }
 
-// 2. 更新 (新規追加)
+// 更新 (新規追加)
 function updateArticle(id, title, url) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.ARTICLES);
@@ -69,36 +69,36 @@ function updateArticle(id, title, url) {
   
   if (sheet.getLastRow() < 2) throw new Error("記事が見つかりません");
   
-  // IDが一致する行を探して更新
+
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getDisplayValues();
   const rowIndex = data.findIndex(row => String(row[0]).trim() === targetId);
   
   if (rowIndex === -1) throw new Error("対象の記事が見つかりませんでした");
   
-  // 行番号は rowIndex + 2 (ヘッダー分と0始まりの補正)
+  
   sheet.getRange(rowIndex + 2, 2, 1, 2).setValues([[title, url]]);
   
   return "記事情報を更新しました";
 }
 
-// 3. 削除 (関連データも掃除する安全版)
+// 削除
 function deleteArticle(id) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const targetId = String(id).trim();
   
-  // A. Articlesシートから削除
+ 
   const aSheet = ss.getSheetByName(SHEET_NAMES.ARTICLES);
   deleteRowById(aSheet, targetId, 1); // 1列目がID
 
-  // B. Linksシートから削除 (SourceまたはTargetに含まれるものを削除)
+  
   const lSheet = ss.getSheetByName(SHEET_NAMES.LINKS);
   filterOutRows(lSheet, row => String(row[0]).trim() !== targetId && String(row[1]).trim() !== targetId);
 
-  // C. ClusterMembersシートから削除 (メンバーに含まれるものを削除)
+  
   const mSheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
   filterOutRows(mSheet, row => String(row[1]).trim() !== targetId); // 2列目が記事ID
 
-  // D. Clustersシート (ピラー記事だった場合、ピラーIDを空にするか、クラスターごと消すか。今回はピラーIDだけ空にする更新を行う)
+ 
   const cSheet = ss.getSheetByName(SHEET_NAMES.CLUSTERS);
   if (cSheet.getLastRow() >= 2) {
     const cData = cSheet.getRange(2, 1, cSheet.getLastRow() - 1, 3).getDisplayValues();
@@ -116,7 +116,7 @@ function deleteArticle(id) {
 
 // --- ヘルパー関数 ---
 
-// 特定条件の行だけ残して書き直す関数
+
 function filterOutRows(sheet, keepConditionFn) {
   if (sheet.getLastRow() < 2) return;
   const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
@@ -129,11 +129,11 @@ function filterOutRows(sheet, keepConditionFn) {
   }
 }
 
-// ID一致行を物理削除する関数
+
 function deleteRowById(sheet, id, idColIndex) {
   if (sheet.getLastRow() < 2) return;
   const data = sheet.getRange(2, idColIndex, sheet.getLastRow() - 1, 1).getDisplayValues();
-  // 下から順に探して削除（行ズレ防止）
+
   for (let i = data.length - 1; i >= 0; i--) {
     if (String(data[i][0]).trim() === id) {
       sheet.deleteRow(i + 2);
