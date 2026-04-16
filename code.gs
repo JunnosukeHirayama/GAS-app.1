@@ -1,5 +1,5 @@
 /**
- * SEO Manager - Final Version
+ * SEO Manager
  */
 
 const SHEET_NAMES = {
